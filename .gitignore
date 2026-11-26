@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.build/
+target/
+node_modules/
+dist/
+*.log
+.idea/
+*.iml
+playwright-report/
+test-results/

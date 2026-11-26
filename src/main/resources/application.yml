@@ -1,0 +1,61 @@
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: never
+  shutdown: graceful
+spring:
+  profiles:
+    default: guardian
+  mvc:
+    problemdetails:
+      enabled: true
+  datasource:
+    url: ${RELEASE_DB_URL:jdbc:postgresql://localhost:5432/releaseguard}
+    username: ${RELEASE_DB_USER:releaseguard}
+    password: ${RELEASE_DB_PASSWORD:}
+  task:
+    scheduling:
+      pool:
+        size: 3
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+release:
+  flags:
+    sdk-url: ${FLAGSMITH_SDK_API_URL:http://localhost:8000/api/v1}
+    management-url: ${FLAGSMITH_API_URL:http://localhost:8000/api/v1}
+    environment-key: ${FLAGSMITH_ENVIRONMENT_KEY:}
+    management-key: ${FLAGSMITH_MANAGEMENT_API_KEY:}
+    management-environment: ${FLAGSMITH_ENVIRONMENT_ID:}
+    project-id: ${FLAGSMITH_PROJECT_ID:0}
+    label: ${FLAGSMITH_ENVIRONMENT_LABEL:releaseguard-lab}
+    allowed: ${FLAGSMITH_ALLOWED_ENVIRONMENT_ID:}
+  auth:
+    viewer: ${RELEASE_VIEWER_PASSWORD:}
+    approver: ${RELEASE_APPROVER_PASSWORD:}
+    shop: ${RELEASE_SHOP_PASSWORD:}
+  shop-url: ${RELEASE_SHOP_URL:http://localhost:8081}
+  ollama-url: ${OLLAMA_URL:http://localhost:11434}
+  model: ${OLLAMA_MODEL:qwen3:4b}
+  lab-enabled: ${RELEASE_LAB_ENABLED:false}
+  analysis:
+    window-seconds: ${RELEASE_WINDOW_SECONDS:20}
+    baseline-seconds: ${RELEASE_BASELINE_SECONDS:60}
+    recovery-seconds: ${RELEASE_RECOVERY_SECONDS:12}
+    min-samples: ${RELEASE_MIN_SAMPLES:12}
+    min-cohort: ${RELEASE_MIN_COHORT:4}
+    error-threshold: ${RELEASE_ERROR_THRESHOLD:0.20}
+    latency-threshold-ms: ${RELEASE_LATENCY_THRESHOLD_MS:250}
+---
+spring:
+  config:
+    activate:
+      on-profile: shop
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+server:
+  port: ${PORT:8081}
