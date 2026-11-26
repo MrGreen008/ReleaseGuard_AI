@@ -14,9 +14,9 @@ import org.springframework.stereotype.Component;
 @Component
 class InvestigationTools {
     private static final Map<String, String> DESCRIPTIONS = Map.of(
-        "compare_cohorts", "Compare baseline and incident checkout samples, failures and latency by evaluated cohort.",
-        "get_flag_configuration", "Read the current payment flag configuration and other flag names.",
-        "get_dependency_health", "Read observed checkout error classes and counts for the two cohorts.",
+        "compare_cohorts", "Read baseline and incident checkout metrics by cohort.",
+        "get_flag_configuration", "Read the payment rollout and other flag names.",
+        "get_dependency_health", "Read shared dependency and payment errors by cohort.",
         "get_flag_history", "Read ReleaseGuard's previous flag observations. These are observation times.",
         "get_previous_remediations", "Read statuses of earlier approved and rejected proposals.");
     private final Flagsmith flags;
@@ -29,8 +29,9 @@ class InvestigationTools {
         this.clock = clock;
     }
 
-    List<Map<String, Object>> schemas() {
-        return DESCRIPTIONS.entrySet().stream().sorted(Map.Entry.comparingByKey()).map(entry ->
+    List<Map<String, Object>> schemas(Evidence evidence) {
+        return DESCRIPTIONS.entrySet().stream().filter(entry -> !evidence.has(entry.getKey()))
+            .sorted(Map.Entry.comparingByKey()).map(entry ->
             Map.<String, Object>of("type", "function", "function", Map.of(
                 "name", entry.getKey(), "description", entry.getValue(), "parameters",
                 Map.of("type", "object", "properties", Map.of(), "additionalProperties", false)))).toList();
@@ -54,8 +55,8 @@ class InvestigationTools {
                 throw ServiceFault.unavailable("AI requested an unavailable or repeated tool.");
             }
             Object result = switch (tool) {
-                case "compare_cohorts" -> Map.of("endpoint", CHECKOUT, "baseline", incident.baseline(),
-                    "incident", incident.current());
+                case "compare_cohorts" -> Map.of("endpoint", CHECKOUT, "baseline", summary(incident.baseline()),
+                    "incident", summary(incident.current()));
                 case "get_flag_configuration" -> flagConfiguration();
                 case "get_dependency_health" -> Map.of("counts", incident.current().total().errors(),
                     "stable", incident.current().cohorts().get(Cohort.STABLE).errors(),
@@ -68,6 +69,17 @@ class InvestigationTools {
             };
             traces.put(tool, new ToolTrace(tool, clock.instant()));
             return result;
+        }
+
+        private Object summary(Window window) {
+            return Map.of("from", window.from(), "to", window.to(), "total", summary(window.total()),
+                "stable", summary(window.cohorts().get(Cohort.STABLE)),
+                "experimental", summary(window.cohorts().get(Cohort.EXPERIMENTAL)),
+                "unclassified", window.cohorts().get(Cohort.UNKNOWN).requests());
+        }
+
+        private Object summary(Stats stats) {
+            return Map.of("requests", stats.requests(), "failures", stats.failures(), "p95Ms", stats.p95Ms());
         }
 
         private Object flagConfiguration() {

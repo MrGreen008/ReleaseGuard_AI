@@ -15,7 +15,7 @@ if (!(Test-Path -LiteralPath '.env')) {
         "RELEASE_VIEWER_PASSWORD=$(New-LocalSecret)"
         "RELEASE_APPROVER_PASSWORD=$(New-LocalSecret)"
         "RELEASE_SHOP_PASSWORD=$(New-LocalSecret)"
-        'OLLAMA_MODEL=qwen3:4b'
+        'OLLAMA_MODEL=qwen3:1.7b'
     ) | Set-Content -LiteralPath '.env' -Encoding utf8
 }
 
@@ -36,7 +36,7 @@ if (!$env:RELEASE_SETUP_CONFIG_ONLY) {
     }
     if (!$SkipModel) {
         $model = (Get-Content -LiteralPath '.env' | Where-Object { $_ -like 'OLLAMA_MODEL=*' }) -replace '^OLLAMA_MODEL=', ''
-        if (!$model) { $model = 'qwen3:4b' }
+        if (!$model) { $model = 'qwen3:1.7b' }
         docker compose -f compose.dependencies.yml up -d ollama
         if ($LASTEXITCODE -ne 0) { throw 'Ollama failed to start.' }
         docker compose -f compose.dependencies.yml exec -T ollama ollama pull $model

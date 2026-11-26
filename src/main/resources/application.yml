@@ -38,7 +38,7 @@ release:
     shop: ${RELEASE_SHOP_PASSWORD:}
   shop-url: ${RELEASE_SHOP_URL:http://localhost:8081}
   ollama-url: ${OLLAMA_URL:http://localhost:11434}
-  model: ${OLLAMA_MODEL:qwen3:4b}
+  model: ${OLLAMA_MODEL:qwen3:1.7b}
   lab-enabled: ${RELEASE_LAB_ENABLED:false}
   analysis:
     window-seconds: ${RELEASE_WINDOW_SECONDS:20}

@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check tracked text file length
+        run: |
+          git grep -I -c '^' | awk -F: '$NF > 500 { print; failed = 1 } END { exit failed }'
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

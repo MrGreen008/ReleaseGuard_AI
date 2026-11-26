@@ -14,11 +14,19 @@ try {
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await page.getByText('Flagsmith connected', { exact: true }).waitFor()
-  await page.getByText('Checkout cohort health').waitFor()
-  await page.screenshot({ path: fileURLToPath(new URL('overview.png', output)), fullPage: true })
-  await page.getByRole('button', { name: 'Incidents', exact: true }).click()
-  await page.getByText('Policy decision').waitFor()
-  await page.screenshot({ path: fileURLToPath(new URL('investigation.png', output)), fullPage: true })
+  if (process.argv.includes('--recovery')) {
+    await page.getByRole('button', { name: 'Approvals', exact: true }).click()
+    await page.getByText('Recovered', { exact: true }).first().waitFor()
+    await page.screenshot({ path: fileURLToPath(new URL('recovery.png', output)), fullPage: true })
+  } else {
+    await page.getByText('Checkout cohort health').waitFor()
+    await page.screenshot({ path: fileURLToPath(new URL('overview.png', output)), fullPage: true })
+    if (!process.argv.includes('--overview-only')) {
+      await page.getByRole('button', { name: 'Incidents', exact: true }).click()
+      await page.getByText('Policy decision').waitFor()
+      await page.screenshot({ path: fileURLToPath(new URL('investigation.png', output)), fullPage: true })
+    }
+  }
 } catch (e) {
   if (e instanceof Error) console.error(e.message, e)
   process.exitCode = 1

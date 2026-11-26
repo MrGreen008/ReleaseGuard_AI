@@ -19,7 +19,8 @@ class OllamaInvestigatorTest {
     private final ReleaseStore store = mock(ReleaseStore.class);
     private final Flagsmith flags = mock(Flagsmith.class);
     private final InvestigationTools tools = new InvestigationTools(flags, store, clock);
-    private final OllamaInvestigator ollama = new OllamaInvestigator(transport, json, tools, "http://unused", "fixture");
+    private final OllamaInvestigator ollama = new OllamaInvestigator(transport, json, tools,
+        new IncidentRules(12, 4, 0.20, 250), "http://unused", "fixture");
 
     @Test
     void realToolProtocolProducesValidatedOutput() throws Exception {
@@ -31,15 +32,18 @@ class OllamaInvestigatorTest {
         var evidence = tools.evidence(incident);
         when(transport.send(eq("Ollama"), anyString(), eq("POST"), anyMap(), any(), any())).thenReturn(
             response("""
-                {"message":{"tool_calls":[{"function":{"name":"compare_cohorts","arguments":{}}},
-                  {"function":{"name":"get_dependency_health","arguments":{}}},
-                  {"function":{"name":"get_flag_configuration","arguments":{}}}]}}
+                {"message":{"tool_calls":[{"function":{"name":"compare_cohorts","arguments":{"label":"discarded"}}},
+                  {"function":{"name":"get_dependency_health","arguments":null}},
+                  {"function":{"name":"get_flag_configuration"}}]}}
                 """),
             response(json.writeValueAsString(java.util.Map.of("message", java.util.Map.of("content",
                 json.writeValueAsString(investigation(incident, state).finding()))))));
         assertThat(ollama.investigate(incident, evidence).recommendation()).isEqualTo(Recommendation.ROLLBACK);
         assertThat(evidence.traces()).extracting(ToolTrace::name)
             .containsExactly("compare_cohorts", "get_dependency_health", "get_flag_configuration");
+        verify(transport).send(eq("Ollama"), anyString(), eq("POST"), anyMap(),
+            argThat(body -> body instanceof java.util.Map<?, ?> request && request.containsKey("format")
+                && !request.containsKey("tools")), any());
         verify(flags, never()).disable(any());
     }
 

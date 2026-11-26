@@ -22,7 +22,7 @@ services:
       FLAGSMITH_ALLOWED_ENVIRONMENT_ID: ${FLAGSMITH_ALLOWED_ENVIRONMENT_ID:?Run scripts/setup.ps1}
       FLAGSMITH_PROJECT_ID: ${FLAGSMITH_PROJECT_ID:?Run scripts/setup.ps1}
       OLLAMA_URL: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:1.7b}
       RELEASE_SHOP_URL: http://shop:8081
       RELEASE_LAB_ENABLED: 'true'
     ports:

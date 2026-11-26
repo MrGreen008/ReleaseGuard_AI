@@ -99,6 +99,10 @@ try {
         elseif ($entry.status -ne 'VERIFYING') { throw "Unexpected recovery state $($entry.status)." }
     }
     Write-Host "PASS recovery from $($recovered.recovery.total.requests) fresh requests with $($recovered.recovery.total.failures) server errors."
+    if ($Capture) {
+        node frontend/scripts/capture.mjs --recovery
+        if ($LASTEXITCODE -ne 0) { throw 'Recovery screenshot capture failed.' }
+    }
 } finally {
     try {
         Request '/lab/fault' 'POST' @{ fault = 'HEALTHY' } | Out-Null

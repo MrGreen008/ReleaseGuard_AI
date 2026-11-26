@@ -48,7 +48,9 @@ class JsonHttp {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw ServiceFault.unavailable(provider + " request was interrupted.");
-        } catch (JacksonException | ExecutionException | TimeoutException | IllegalArgumentException e) {
+        } catch (TimeoutException e) {
+            throw ServiceFault.unavailable(provider + " exceeded its request deadline.");
+        } catch (JacksonException | ExecutionException | IllegalArgumentException e) {
             throw ServiceFault.unavailable(provider + " request or response failed.");
         }
     }

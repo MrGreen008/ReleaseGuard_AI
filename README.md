@@ -23,7 +23,7 @@ pwsh -File scripts/start.ps1
 
 Sign in to ReleaseGuard as `approver` using `RELEASE_APPROVER_PASSWORD` from `.env`. Use `viewer` with `RELEASE_VIEWER_PASSWORD` for read-only access. For the isolated Flagsmith UI, sign in as `releaseguard-admin@example.invalid` with `FLAGSMITH_ADMIN_PASSWORD`.
 
-The setup script seeds a 40% experimental allocation for `new_payment_engine`, with the stable payment implementation as the default. It writes the SDK key, dedicated project and environment, explicit allowlist, and organization management token to `.env.flagsmith`. It leaves existing flag state in place on restart. The model tag comes from `OLLAMA_MODEL` and defaults to `qwen3:4b`. See [configuration and troubleshooting](docs/troubleshooting.md).
+The setup script seeds a 40% experimental allocation for `new_payment_engine`, with the stable payment implementation as the default. It writes the SDK key, dedicated project and environment, explicit allowlist, and organization management token to `.env.flagsmith`. It leaves existing flag state in place on restart. The model tag comes from `OLLAMA_MODEL` and defaults to `qwen3:1.7b`. See [configuration and troubleshooting](docs/troubleshooting.md).
 
 To stop the project and retain both databases and the model volume, run `pwsh -File scripts/stop.ps1`.
 
