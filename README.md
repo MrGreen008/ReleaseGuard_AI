@@ -48,12 +48,17 @@ pwsh -File scripts/live-test.ps1
 
 The live test deliberately exercises an approved mutation in the isolated lab. Start from an enabled payment flag with traffic stopped. Docker Compose provides PostgreSQL, Flagsmith and Ollama. The Java and browser fixture tests run independently of those services.
 
+## Live screenshots
+
+[Checkout overview](docs/screenshots/overview.png) · [AI investigation](docs/screenshots/investigation.png) · [Verified recovery](docs/screenshots/recovery.png)
+
 ## Project notes
 
 - [Architecture and lifecycle](ARCHITECTURE.md)
 - [API contracts](docs/api.md)
 - [Security model and operational boundaries](SECURITY.md)
 - [Test plan](TEST_PLAN.md)
+- [Verification report](docs/test-report.md)
 - [Demo recording script](docs/demo-script.md)
 - [Track 02 submission draft](docs/submission.md)
 
