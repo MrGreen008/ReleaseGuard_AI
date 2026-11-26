@@ -66,6 +66,11 @@ class IncidentMonitor {
                 observingIncident = false;
                 return;
             }
+            if (lab.fault() == Fault.PAYMENT_REGRESSION && lab.changedAt().plusSeconds(windowSeconds).isAfter(now)
+                && (current.cohorts().get(Cohort.STABLE).requests() < rules.minCohort
+                    || current.cohorts().get(Cohort.EXPERIMENTAL).requests() < rules.minCohort)) {
+                return;
+            }
             if (observingIncident || store.incidents().stream().anyMatch(
                 incident -> incident.detectedAt().isAfter(now.minusSeconds(8)))) {
                 return;

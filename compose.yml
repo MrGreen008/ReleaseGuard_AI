@@ -1,0 +1,74 @@
+name: releaseguard
+include:
+  - compose.dependencies.yml
+services:
+  guardian:
+    image: releaseguard-local:java
+    mem_limit: 512m
+    build:
+      context: .
+    environment:
+      SPRING_PROFILES_ACTIVE: guardian
+      RELEASE_DB_URL: jdbc:postgresql://db:5432/releaseguard
+      RELEASE_DB_PASSWORD: ${RELEASE_DB_PASSWORD:?Run scripts/setup.ps1}
+      RELEASE_VIEWER_PASSWORD: ${RELEASE_VIEWER_PASSWORD:?Run scripts/setup.ps1}
+      RELEASE_APPROVER_PASSWORD: ${RELEASE_APPROVER_PASSWORD:?Run scripts/setup.ps1}
+      RELEASE_SHOP_PASSWORD: ${RELEASE_SHOP_PASSWORD:?Run scripts/setup.ps1}
+      FLAGSMITH_SDK_API_URL: http://flagsmith:8000/api/v1
+      FLAGSMITH_API_URL: http://flagsmith:8000/api/v1
+      FLAGSMITH_ENVIRONMENT_KEY: ${FLAGSMITH_ENVIRONMENT_KEY:?Run scripts/setup.ps1}
+      FLAGSMITH_MANAGEMENT_API_KEY: ${FLAGSMITH_MANAGEMENT_API_KEY:?Run scripts/setup.ps1}
+      FLAGSMITH_ENVIRONMENT_ID: ${FLAGSMITH_ENVIRONMENT_ID:?Run scripts/setup.ps1}
+      FLAGSMITH_ALLOWED_ENVIRONMENT_ID: ${FLAGSMITH_ALLOWED_ENVIRONMENT_ID:?Run scripts/setup.ps1}
+      FLAGSMITH_PROJECT_ID: ${FLAGSMITH_PROJECT_ID:?Run scripts/setup.ps1}
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      RELEASE_SHOP_URL: http://shop:8081
+      RELEASE_LAB_ENABLED: 'true'
+    ports:
+      - 127.0.0.1:8080:8080
+    depends_on:
+      db:
+        condition: service_healthy
+      shop:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, bash, /app/healthcheck.sh, '8080']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+  shop:
+    image: releaseguard-local:java
+    mem_limit: 512m
+    pull_policy: never
+    environment:
+      SPRING_PROFILES_ACTIVE: shop
+      RELEASE_SHOP_PASSWORD: ${RELEASE_SHOP_PASSWORD:?Run scripts/setup.ps1}
+      FLAGSMITH_SDK_API_URL: http://flagsmith:8000/api/v1
+      FLAGSMITH_ENVIRONMENT_KEY: ${FLAGSMITH_ENVIRONMENT_KEY:?Run scripts/setup.ps1}
+      RELEASE_LAB_ENABLED: 'true'
+    ports:
+      - 127.0.0.1:8081:8081
+    depends_on:
+      flagsmith:
+        condition: service_started
+    healthcheck:
+      test: [CMD, bash, /app/healthcheck.sh, '8081']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+  dashboard:
+    build:
+      context: frontend
+    ports:
+      - 127.0.0.1:3000:8080
+    depends_on:
+      guardian:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q -O /dev/null http://127.0.0.1:8080/']
+      interval: 5s
+      timeout: 3s
+      retries: 10

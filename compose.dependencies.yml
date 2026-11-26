@@ -1,0 +1,64 @@
+name: releaseguard
+x-flagsmith: &flagsmith
+  DATABASE_URL: postgresql://flagsmith:${FLAGSMITH_DB_PASSWORD:?Run scripts/setup.ps1}@flagsmith-db:5432/flagsmith
+  DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,flagsmith
+  FLAGSMITH_DOMAIN: localhost:8000
+  DJANGO_SECRET_KEY: ${FLAGSMITH_DJANGO_SECRET:?Run scripts/setup.ps1}
+  FLAGSMITH_ADMIN_PASSWORD: ${FLAGSMITH_ADMIN_PASSWORD:?Run scripts/setup.ps1}
+  WAREHOUSE_CREDENTIALS_SECRET: ${FLAGSMITH_DJANGO_SECRET}
+  ENVIRONMENT: production
+  TASK_RUN_METHOD: SYNCHRONOUSLY
+  PREVENT_SIGNUP: 'true'
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: releaseguard
+      POSTGRES_USER: releaseguard
+      POSTGRES_PASSWORD: ${RELEASE_DB_PASSWORD:?Run scripts/setup.ps1}
+    volumes:
+      - release-db:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U releaseguard]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  flagsmith-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: flagsmith
+      POSTGRES_USER: flagsmith
+      POSTGRES_PASSWORD: ${FLAGSMITH_DB_PASSWORD}
+    volumes:
+      - flags-db:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U flagsmith]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  flagsmith-migrate:
+    image: docker.flagsmith.com/flagsmith/flagsmith:2.263.0
+    command: [migrate]
+    environment: *flagsmith
+    healthcheck:
+      disable: true
+    depends_on:
+      flagsmith-db:
+        condition: service_healthy
+  flagsmith:
+    image: docker.flagsmith.com/flagsmith/flagsmith:2.263.0
+    command: [serve]
+    environment: *flagsmith
+    ports:
+      - 127.0.0.1:8000:8000
+    depends_on:
+      flagsmith-migrate:
+        condition: service_completed_successfully
+  ollama:
+    image: ollama/ollama:0.18.2
+    volumes:
+      - models:/root/.ollama
+volumes:
+  release-db:
+  flags-db:
+  models:

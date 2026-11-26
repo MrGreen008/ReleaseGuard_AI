@@ -2,6 +2,7 @@ package dev.releaseguard;
 
 import static dev.releaseguard.Domain.*;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -124,7 +125,7 @@ class OllamaInvestigator implements Investigator {
                 throw ServiceFault.unavailable("AI returned incomplete structured findings.");
             }
             return finding;
-        } catch (JsonProcessingException | IllegalArgumentException e) {
+        } catch (IOException | IllegalArgumentException e) {
             throw ServiceFault.unavailable("AI returned invalid structured findings.");
         }
     }

@@ -66,36 +66,53 @@ class Flagsmith {
     }
 
     List<FlagState> inventory() {
+        var environment = management("/environments/" + managementEnvironment + "/", "GET", null);
+        int environmentId = environment.path("id").asInt();
+        if (environmentId < 1 || environment.path("project").asInt() != projectId
+            || !environment.path("api_key").asText().equals(managementEnvironment)
+            || !environment.path("use_v2_feature_versioning").isBoolean()
+            || environment.path("use_v2_feature_versioning").asBoolean()
+            || environment.path("hide_disabled_flags").asBoolean(true)
+            || environment.path("minimum_change_request_approvals").asInt() > 0) {
+            throw ServiceFault.unavailable("Expected an isolated legacy Flagsmith environment with visible disabled flags.");
+        }
         JsonNode states = management(statesPath() + "?page_size=100", "GET", null);
         JsonNode features = management("/projects/" + projectId + "/features/?page_size=100", "GET", null);
+        var defaultStates = items(states);
+        var projectFeatures = items(features);
         var result = new ArrayList<FlagState>();
-        for (var state : items(states)) {
+        for (var state : defaultStates) {
             if (!isDefault(state)) {
                 continue;
             }
             int featureId = featureId(state);
-            var feature = items(features).stream().filter(item -> item.path("id").asInt() == featureId)
+            var feature = projectFeatures.stream().filter(item -> item.path("id").asInt() == featureId)
                 .findFirst().orElseThrow(() -> ServiceFault.unavailable("Flagsmith feature metadata is missing."));
-            int overrides = (int) items(states).stream()
-                .filter(candidate -> featureId(candidate) == featureId && !isDefault(candidate)).count();
+            String name = feature.path("name").asText();
+            if (!name.matches("[a-zA-Z0-9_-]{1,80}")) {
+                throw ServiceFault.unavailable("Flagsmith returned an unsupported flag name.");
+            }
+            int overrides = PAYMENT.equals(name) ? paymentOverrides(environmentId, featureId) : 0;
             var variants = new ArrayList<Variant>();
             for (var allocation : state.path("multivariate_feature_state_values")) {
                 int optionId = allocation.path("multivariate_feature_option").asInt();
                 for (var option : feature.path("multivariate_options")) {
                     if (option.path("id").asInt() == optionId) {
-                        variants.add(new Variant(option.path("string_value").asText(),
+                        variants.add(new Variant(paymentValue(option.path("string_value").asText()),
                             allocation.path("percentage_allocation").asDouble()));
                     }
                 }
             }
             int stateId = state.path("id").asInt();
-            if (stateId < 1 || featureId < 1 || !state.path("enabled").isBoolean() || feature.path("name").asText().isBlank()) {
+            if (stateId < 1 || featureId < 1 || state.path("environment").asInt() != environmentId
+                || !state.path("enabled").isBoolean()) {
                 throw ServiceFault.unavailable("Flagsmith returned incomplete flag configuration.");
             }
             // Exclude upstream secrets and free text from domain output. Use configuration for stale checks.
-            String revision = digest(state.toString() + "|" + variants + "|" + overrides);
-            result.add(new FlagState(stateId, featureId, feature.path("name").asText(),
-                state.path("enabled").asBoolean(), PAYMENT.equals(feature.path("name").asText())
+            String revision = digest(managementUrl + "|" + managementEnvironment + "|" + state
+                + "|" + variants + "|" + overrides);
+            result.add(new FlagState(stateId, featureId, name,
+                state.path("enabled").asBoolean(), PAYMENT.equals(name)
                     ? paymentValue(state.path("feature_state_value").asText()) : "redacted",
                 List.copyOf(variants), overrides, revision));
         }
@@ -123,6 +140,16 @@ class Flagsmith {
 
     private String statesPath() {
         return "/environments/" + managementEnvironment + "/featurestates/";
+    }
+
+    private int paymentOverrides(int environmentId, int featureId) {
+        if (environmentId < 1 || featureId < 1) {
+            throw ServiceFault.unavailable("Flagsmith did not identify the payment environment.");
+        }
+        var segments = management("/features/feature-segments/?environment=" + environmentId + "&feature=" + featureId,
+            "GET", null);
+        var identities = management(statesPath() + "?anyIdentity=true&feature=" + featureId, "GET", null);
+        return items(segments).size() + items(identities).size();
     }
 
     private JsonNode management(String path, String method, Object data) {

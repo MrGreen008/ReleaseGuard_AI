@@ -36,13 +36,13 @@ class IncidentRules {
         boolean failedCohort = experiment.requests() >= minCohort && experiment.errorRate() >= errorThreshold
             || stable.requests() >= minCohort && stable.errorRate() >= errorThreshold;
         return failedCohort || current.total().errorRate() >= errorThreshold
-            || current.total().p95Ms() >= latencyThreshold && (baseline.total().requests() < minSamples
-                || current.total().p95Ms() - baseline.total().p95Ms() >= latencyThreshold / 2);
+            || baseline.total().requests() >= minSamples && current.total().p95Ms() >= latencyThreshold
+                && current.total().p95Ms() - baseline.total().p95Ms() >= latencyThreshold / 2;
     }
 
     String rollbackBlock(Incident incident, FlagState flag) {
         if (flag == null || !flag.enabled() || flag.overrides() != 0 || !PAYMENT.equals(flag.name())
-            || !"stable".equals(flag.value()) || flag.variants().stream().noneMatch(v ->
+            || !"stable".equals(flag.value()) || flag.variants().size() != 1 || flag.variants().stream().noneMatch(v ->
                 "experimental".equals(v.name()) && v.weight() > 0 && v.weight() < 100)) {
             return "Payment flag must have a supported active rollout without overrides.";
         }
@@ -78,8 +78,10 @@ class IncidentRules {
             && current.p95Ms() <= Math.max(latencyThreshold, healthy.p95Ms() + latencyThreshold / 2)) {
             return Status.RECOVERED;
         }
-        if (degraded.errorRate() - current.errorRate() >= 0.10
-            || degraded.p95Ms() - current.p95Ms() >= latencyThreshold / 2) {
+        if (current.errorRate() <= degraded.errorRate() + 0.02
+            && current.p95Ms() <= degraded.p95Ms() + latencyThreshold / 4
+            && (degraded.errorRate() - current.errorRate() >= 0.10
+                || degraded.p95Ms() - current.p95Ms() >= latencyThreshold / 2)) {
             return Status.PARTIALLY_RECOVERED;
         }
         return Status.NOT_RECOVERED;

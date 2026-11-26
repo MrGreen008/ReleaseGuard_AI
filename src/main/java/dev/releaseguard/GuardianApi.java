@@ -8,6 +8,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
+import io.swagger.v3.oas.annotations.info.Info;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -19,6 +24,9 @@ import org.springframework.web.bind.annotation.*;
 @Profile("guardian")
 @RestController
 @RequestMapping("/api/v1")
+@OpenAPIDefinition(info = @Info(title = "ReleaseGuard AI", version = "v1"),
+    security = @SecurityRequirement(name = "localBasic"))
+@SecurityScheme(name = "localBasic", type = SecuritySchemeType.HTTP, scheme = "basic")
 class GuardianApi {
     private final Clock clock;
     private final Flagsmith flags;

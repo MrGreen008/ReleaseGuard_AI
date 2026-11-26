@@ -1,0 +1,10 @@
+.env*
+.git
+.build
+**/node_modules
+**/dist
+target
+frontend
+docs
+reports
+test-results
