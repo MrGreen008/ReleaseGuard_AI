@@ -8,6 +8,8 @@ ReleaseGuard investigates checkout regressions during a feature rollout. Demo Sh
 
 Install Docker Desktop with Linux containers and PowerShell 7. The first start downloads container images and the configured Qwen model. No hosted AI token or paid account is required. Keep the generated `.env` and `.env.flagsmith` files private.
 
+The first investigation on a CPU-only machine can take several minutes while Ollama loads the model. A completed investigation retains the model briefly for the next request.
+
 ```powershell
 pwsh -File scripts/start.ps1
 ```

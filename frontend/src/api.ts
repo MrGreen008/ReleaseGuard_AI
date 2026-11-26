@@ -12,7 +12,7 @@ export async function api<T>(credentials: Credentials, path: string, method = 'G
       },
       body: payload ? JSON.stringify(payload) : undefined,
       cache: 'no-store',
-      signal: AbortSignal.timeout(method === 'POST' ? 145_000 : 20_000),
+      signal: AbortSignal.timeout(method === 'POST' ? 265_000 : 20_000),
     })
     if (!response.ok) {
       let detail = `Request returned HTTP ${response.status}.`

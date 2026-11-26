@@ -55,7 +55,12 @@ spring:
       on-profile: shop
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 server:
   port: ${PORT:8081}

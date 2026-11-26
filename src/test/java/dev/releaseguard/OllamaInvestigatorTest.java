@@ -9,11 +9,11 @@ import static org.mockito.Mockito.*;
 import java.time.Clock;
 import java.util.List;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 
 class OllamaInvestigatorTest {
-    private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
+    private final JsonMapper json = JsonMapper.builder().findAndAddModules().build();
     private final Clock clock = Clock.systemUTC();
     private final JsonHttp transport = mock(JsonHttp.class);
     private final ReleaseStore store = mock(ReleaseStore.class);

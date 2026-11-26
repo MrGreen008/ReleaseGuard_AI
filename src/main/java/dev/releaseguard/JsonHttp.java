@@ -1,6 +1,5 @@
 package dev.releaseguard;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -11,8 +10,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -48,7 +48,7 @@ class JsonHttp {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw ServiceFault.unavailable(provider + " request was interrupted.");
-        } catch (IOException | ExecutionException | TimeoutException | IllegalArgumentException e) {
+        } catch (JacksonException | ExecutionException | TimeoutException | IllegalArgumentException e) {
             throw ServiceFault.unavailable(provider + " request or response failed.");
         }
     }

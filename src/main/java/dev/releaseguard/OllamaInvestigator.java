@@ -2,15 +2,15 @@ package dev.releaseguard;
 
 import static dev.releaseguard.Domain.*;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -52,7 +52,7 @@ class OllamaInvestigator implements Investigator {
         messages.add(Map.of("role", "system", "content", SYSTEM));
         messages.add(Map.of("role", "user", "content",
             "Investigate " + incident.id() + ". Severity " + incident.severity() + ". Choose the appropriate tools."));
-        long deadline = System.nanoTime() + Duration.ofSeconds(120).toNanos();
+        long deadline = System.nanoTime() + Duration.ofSeconds(240).toNanos();
         for (int round = 0; round < 7; round++) {
             long remaining = deadline - System.nanoTime();
             if (remaining <= 0) {
@@ -60,7 +60,8 @@ class OllamaInvestigator implements Investigator {
             }
             JsonNode reply = http.send("Ollama", url + "/api/chat", "POST", Map.of(),
                 Map.of("model", model, "messages", messages, "tools", tools.schemas(), "stream", false,
-                    "think", false, "options", Map.of("temperature", 0, "num_predict", 650, "num_ctx", 4096)),
+                    "think", false, "keep_alive", "15m",
+                    "options", Map.of("temperature", 0, "num_predict", 420, "num_ctx", 4096)),
                 Duration.ofNanos(remaining)).requireOk("Ollama").path("message");
             JsonNode calls = reply.path("tool_calls");
             if (calls.isArray() && !calls.isEmpty()) {
@@ -115,17 +116,17 @@ class OllamaInvestigator implements Investigator {
             plain = plain.substring(7, plain.length() - 3).strip();
         }
         try {
-            var finding = json.readerFor(Finding.class)
-                .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
-                .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .readValue(plain, Finding.class);
+            Finding finding = json.readerFor(Finding.class)
+                .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .readValue(plain);
             if (finding == null || finding.recommendation() == null || finding.confidence() == null
                 || !valid(finding.summary()) || !valid(finding.rationale()) || !valid(finding.alternatives())
                 || !valid(finding.limitations()) || !valid(finding.expectedEffect()) || !valid(finding.verification())) {
                 throw ServiceFault.unavailable("AI returned incomplete structured findings.");
             }
             return finding;
-        } catch (IOException | IllegalArgumentException e) {
+        } catch (JacksonException | IllegalArgumentException e) {
             throw ServiceFault.unavailable("AI returned invalid structured findings.");
         }
     }
@@ -141,7 +142,7 @@ class OllamaInvestigator implements Investigator {
     private String serialize(Object evidence) {
         try {
             return json.writeValueAsString(evidence);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("Could not encode read-only evidence.", e);
         }
     }

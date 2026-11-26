@@ -30,7 +30,9 @@ class LocalSecurity {
         var users = new InMemoryUserDetailsManager();
         var encoder = new BCryptPasswordEncoder();
         if (environment.acceptsProfiles(Profiles.of("shop"))) {
-            users.createUser(User.withUsername("simulator").password(encode(encoder, shop)).roles("SHOP").build());
+            // Setup provisions a random service secret. Avoid adding human-password hashing latency to checkout telemetry.
+            users.createUser(User.withUsername("simulator").password(encode(new BCryptPasswordEncoder(4), shop))
+                .roles("SHOP").build());
         } else {
             if (viewer.equals(approver)) {
                 throw new IllegalArgumentException("Viewer and approver passwords must differ.");

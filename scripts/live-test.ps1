@@ -8,7 +8,7 @@ $headers = @{ Authorization = "Basic $auth"; 'X-ReleaseGuard-Intent' = '1' }
 $base = 'http://127.0.0.1:8080/api/v1'
 
 function Request([string]$Path, [string]$Method = 'GET', $Payload = $null) {
-    $requestArgs = @{ Uri = $base + $Path; Headers = $headers; Method = $Method; TimeoutSec = 140 }
+    $requestArgs = @{ Uri = $base + $Path; Headers = $headers; Method = $Method; TimeoutSec = 265 }
     if ($null -ne $Payload) {
         $requestArgs.ContentType = 'application/json'
         $requestArgs.Body = ConvertTo-Json -InputObject $Payload -Compress
