@@ -25,6 +25,7 @@ const integrations: Integrations = {
 }
 const overview = (user: string, proposals: Proposal[]): Dashboard => ({
   user, at, environment: 'releaseguard-lab', metrics: window,
+  checkoutSampled: true, checkoutSeverity: null,
   lab: { enabled: true, running: false, fault: 'HEALTHY', until: null, rate: 0 },
   incidents: [{ id: 'incident-1', detectedAt: at, severity: 'WARNING', baseline: window, current: window }],
   investigations: [], proposals, audit: [],
@@ -51,6 +52,11 @@ test('approver reviews the exact mutation and can see recovery', async ({ page }
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByRole('heading', { name: 'Release overview' })).toBeVisible()
   await expect(page.getByText('Experimental payment', { exact: true })).toBeVisible()
+  await expect(page.getByText('100% passed', { exact: true })).toBeVisible()
+  await expect(page.getByText('37.5% passed', { exact: true })).toBeVisible()
+  await expect(page.getByText('3 passed · 5 failed · P95 340 ms', { exact: true })).toBeVisible()
+  await expect(page.getByText('Normal', { exact: true })).toBeVisible()
+  await expect(page.getByText('Warning', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Approvals' }).click()
   await page.getByRole('button', { name: 'Review rollback' }).click()
   await expect(page.getByRole('dialog')).toContainText('new_payment_engine')
@@ -63,6 +69,39 @@ test('approver reviews the exact mutation and can see recovery', async ({ page }
   await expect(page.getByText('Recovered', { exact: true })).toBeVisible()
   await expect(page.getByText('Fresh traffic')).toBeVisible()
   expect(decisions).toBe(1)
+})
+
+test('feature flags refresh on entry and label inactive rollout weights', async ({ page }) => {
+  let remoteFlag = { ...flag, enabled: false }
+  await page.route('**/api/v1/**', route => route.request().url().endsWith('/integrations')
+    ? route.fulfill({ json: { ...integrations, flags: [remoteFlag] } })
+    : route.fulfill({ json: overview('approver', []) }))
+  await page.goto('/')
+  await page.getByLabel('Password').fill('fixture-password')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.getByRole('button', { name: 'Feature flags' }).click()
+  await expect(page.getByText('Configured allocation')).toBeVisible()
+  await expect(page.getByText('Demo checkouts use the stable payment engine.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Overview' }).click()
+  remoteFlag = flag
+  await page.getByRole('button', { name: 'Feature flags' }).click()
+  await expect(page.getByText('Enabled', { exact: true })).toBeVisible({ timeout: 5000 })
+})
+
+test('checkout health follows live samples independently of incident history', async ({ page }) => {
+  let dashboard: Dashboard = { ...overview('approver', []), checkoutSampled: false }
+  await page.route('**/api/v1/**', route => route.request().url().endsWith('/integrations')
+    ? route.fulfill({ json: integrations }) : route.fulfill({ json: dashboard }))
+  await page.goto('/')
+  await page.getByLabel('Password').fill('fixture-password')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  const health = page.locator('.metric').filter({ hasText: 'Current checkout health' })
+  await expect(health).toContainText('Awaiting samples')
+  dashboard = { ...dashboard, checkoutSampled: true, checkoutSeverity: 'CRITICAL' }
+  await expect(health).toContainText('Critical', { timeout: 6000 })
+  dashboard = { ...dashboard, checkoutSeverity: null }
+  await expect(health).toContainText('Normal', { timeout: 6000 })
+  await expect(page.getByText('Warning', { exact: true })).toBeVisible()
 })
 
 test('viewer can inspect a proposal without decision controls', async ({ page }) => {

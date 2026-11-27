@@ -28,6 +28,7 @@ export type Audit = { id: number; at: string; actor: string; event: string; refe
 export type Lab = { enabled: boolean; running: boolean; fault: Fault; until: string | null; rate: number }
 export type Dashboard = {
   at: string; environment: string; user: string; metrics: Window; lab: Lab
+  checkoutSampled: boolean; checkoutSeverity: 'WARNING' | 'CRITICAL' | null
   incidents: Incident[]; investigations: Investigation[]; proposals: Proposal[]; audit: Audit[]
 }
 export type Integrations = {

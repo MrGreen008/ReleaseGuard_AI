@@ -8,4 +8,4 @@ For a qualifying feature regression, an approver reviews the exact Flagsmith rol
 
 The repository includes a reproducible Compose lab, run instructions, and automated safety and workflow checks. The demo video should show the actual feature regression, explicit approval, recovery, and shared failure.
 
-Add the public repository and recorded demo URLs in the submission form after publication is approved. [Official rules](https://www.wemakedevs.org/hackathons/flagsmith/rules)
+Flagsmith features used include feature flags, remote config, the Flagsmith API, and self-hosted Flagsmith. ReleaseGuard records checkout metrics in its own telemetry. See the [setup guide](../README.md) and [measured verification results](test-report.md). [Official rules](https://www.wemakedevs.org/hackathons/flagsmith/rules)

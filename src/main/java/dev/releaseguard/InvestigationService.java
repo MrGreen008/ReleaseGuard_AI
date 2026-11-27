@@ -60,6 +60,17 @@ class InvestigationService {
         var now = clock.instant();
         var policy = "Read-only recommendation.";
         Proposal proposal = null;
+        if (finding.recommendation() == Recommendation.OBSERVE
+            || finding.recommendation() == Recommendation.MANUAL_INVESTIGATION) {
+            if (incident.baseline().total().requests() < rules.minSamples) {
+                policy = "Read-only recommendation. More healthy baseline samples are required for rollback.";
+            } else if (flag != null) {
+                String reason = rules.rollbackBlock(incident, flag.state());
+                if (reason != null) {
+                    policy = "Read-only recommendation. " + reason;
+                }
+            }
+        }
         if (finding.recommendation() == Recommendation.ROLLBACK) {
             String reason = targetAllowed ? rules.rollbackBlock(incident, flag == null ? null : flag.state())
                 : "The management and SDK targets must match the allowlisted environment.";

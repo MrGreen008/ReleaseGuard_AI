@@ -43,6 +43,20 @@ class IncidentRulesTest {
     }
 
     @Test
+    void rollbackRequiresTwoThirdsExperimentalFailuresAndAHealthyBaseline() {
+        var baseline = incident(now).baseline();
+        var threshold = window(now, stats(16, 0, 220), stats(9, 6, 534));
+        var below = window(now, stats(16, 0, 220), stats(9, 5, 534));
+        var failedBaseline = window(now.minusSeconds(12), stats(16, 16, 248), stats(9, 9, 260));
+        assertThat(rules.rollbackBlock(new Incident(UUID.randomUUID(), now, Severity.WARNING,
+            baseline, threshold), enabledFlag())).isNull();
+        assertThat(rules.rollbackBlock(new Incident(UUID.randomUUID(), now, Severity.WARNING,
+            baseline, below), enabledFlag())).contains("two-thirds");
+        assertThat(rules.rollbackBlock(new Incident(UUID.randomUUID(), now, Severity.WARNING,
+            failedBaseline, threshold), enabledFlag())).contains("Baseline");
+    }
+
+    @Test
     void anOverrideOrAnotherFlagCannotQualify() {
         var flag = enabledFlag();
         assertThat(rules.rollbackBlock(incident(now), new FlagState(flag.stateId(), flag.featureId(), PAYMENT,

@@ -2,6 +2,8 @@
 
 Target about three minutes, following the organizer's guidance. Before recording, start the stack, enable the payment flag in the isolated Flagsmith UI, and establish healthy traffic. Choose a viewport that shows both cohort bars and the right-hand panels. Avoid recording credentials or environment files.
 
+Select **Healthy baseline**, start traffic, and wait for at least 30 healthy requests with both cohorts present before selecting **Payment regression**. Keep traffic running through approval and recovery. The **Requests** card counts checkouts in the last 20 seconds. The Overview bars show checkout pass rates. The incident evidence shows server error rates.
+
 | Approximate time | Show |
 | --- | --- |
 | 0:00–0:20 | Release overview with healthy requests. Explain that a payment rollout can break its exposed cohort while stable checkout still works. |

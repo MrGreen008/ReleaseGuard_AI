@@ -76,6 +76,7 @@ small { color: var(--muted); }
 .bar { height: .47rem; background: #e9efeb; border-radius: 1rem; overflow: hidden; }
 .bar i { display: block; height: 100%; background: #4b956c; border-radius: 1rem; }
 .bar .experiment { background: #d37c42; }
+.success-bar { background: #e5ac86; }
 .errors { padding: .55rem .7rem; background: #f4f6f3; border-radius: .4rem; margin: 0; }
 .errors div { display: flex; justify-content: space-between; font-size: .8rem; padding: .15rem 0; }
 .errors dd { margin: 0; }

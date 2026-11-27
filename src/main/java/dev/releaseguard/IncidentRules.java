@@ -55,15 +55,18 @@ class IncidentRules {
             return "More baseline and cohort samples are required.";
         }
         if (baseline.total().errorRate() > 0.05 || stable.errorRate() > 0.05
-            || stable.p95Ms() >= latencyThreshold || current.cohorts().get(Cohort.UNKNOWN).requests() > 0
+            || stable.successes() <= stable.requests() / 2 || current.cohorts().get(Cohort.UNKNOWN).requests() > 0
             || current.total().errors().containsKey("shared_dependency_unavailable")) {
             return "Baseline, control, or dependency evidence does not support a flag-only change.";
         }
-        if (experiment.errorRate() - stable.errorRate() < errorThreshold
-            && experiment.p95Ms() - stable.p95Ms() < latencyThreshold) {
-            return "Experimental degradation is below the rollback threshold.";
+        if (!experimentalFailureThreshold(experiment)) {
+            return "Fewer than two-thirds of experimental checkouts had server errors.";
         }
         return null;
+    }
+
+    boolean experimentalFailureThreshold(Stats experimental) {
+        return experimental.failures() * 3 >= experimental.requests() * 2;
     }
 
     Status recovery(Incident incident, Window fresh) {

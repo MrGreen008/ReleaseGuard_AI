@@ -18,12 +18,13 @@ export function App() {
   const [busy, setBusy] = useState('')
   const [review, setReview] = useState<Review | null>(null)
   const reviewDialog = useRef<HTMLDialogElement>(null)
+  const viewingFlags = page === 'Feature flags'
 
   const refresh = useCallback(async (auth: Credentials, signal?: AbortSignal) => {
     try {
       const value = await api<Dashboard>(auth, '/dashboard')
       if (!signal?.aborted) {
-        setData(value)
+        setData(previous => previous && Date.parse(previous.at) > Date.parse(value.at) ? previous : value)
         setConnection('')
       }
     } catch (e) {
@@ -35,23 +36,44 @@ export function App() {
     if (!credentials) return
     const activity = new AbortController()
     const auth = credentials
-    const timer = window.setInterval(() => { void refresh(auth, activity.signal) }, 3000)
+    let refreshing = false
+    const timer = window.setInterval(async () => {
+      if (refreshing) return
+      refreshing = true
+      try {
+        await refresh(auth, activity.signal)
+      } finally {
+        refreshing = false
+      }
+    }, 3000)
+    return () => {
+      activity.abort()
+      window.clearInterval(timer)
+    }
+  }, [credentials, refresh])
+
+  useEffect(() => {
+    if (!credentials) return
+    const auth = credentials
+    const activity = new AbortController()
+    const pollDelay = viewingFlags ? 5_000 : 12_000
+    let timer: number | undefined
     const connections = async () => {
       try {
         const result = await api<Integrations>(auth, '/integrations')
         if (!activity.signal.aborted) setIntegrations(result)
       } catch {
         if (!activity.signal.aborted) setIntegrations(null)
+      } finally {
+        if (!activity.signal.aborted) timer = window.setTimeout(() => { void connections() }, pollDelay)
       }
     }
     void connections()
-    const integrationsTimer = window.setInterval(() => { void connections() }, 12_000)
     return () => {
       activity.abort()
-      window.clearInterval(timer)
-      window.clearInterval(integrationsTimer)
+      window.clearTimeout(timer)
     }
-  }, [credentials, refresh])
+  }, [credentials, viewingFlags])
 
   useEffect(() => {
     if (review && reviewDialog.current && !reviewDialog.current.open) reviewDialog.current.showModal()
@@ -148,8 +170,8 @@ export function App() {
         {page === 'Overview' && <>
           <Metrics data={data} />
           <div className="panel-grid">
-            <Panel title="Checkout cohort health" subtitle="Server error rate by evaluated payment variant">
-              <CohortComparison data={data.metrics} />
+            <Panel title="Checkout cohort health" subtitle="Successful checkouts by payment variant">
+              <CohortComparison data={data.metrics} showSuccess />
             </Panel>
             <Panel title="Incident queue" subtitle="Most recent detection windows">
               {data.incidents.length === 0 ? <p className="muted">No checkout degradation has been detected.</p>

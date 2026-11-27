@@ -1,16 +1,18 @@
 # ReleaseGuard AI
 
-**Ship confidently. Investigate intelligently. Recover safely.**
-
 ReleaseGuard investigates checkout regressions during a feature rollout. Demo Shop evaluates each synthetic customer through Flagsmith. Guardian compares real HTTP outcomes by cohort, gives a local model read-only evidence tools, and requires an approver to confirm a specific rollback. It verifies the resulting state in Flagsmith and measures fresh traffic before classifying recovery.
+
+**Toggle Wars Track 2 — AI Agents and Feature Flags.** See the [live verification results](docs/test-report.md) and [demo walkthrough](docs/demo-script.md).
 
 ## Run locally
 
-Install Docker Desktop with Linux containers and PowerShell 7. The first start downloads container images and the configured Qwen model. No hosted AI token or paid account is required. Keep the generated `.env` and `.env.flagsmith` files private.
+Install Git, Docker Desktop with Linux containers, and PowerShell 7 (`pwsh`). Open Docker Desktop before running the commands below. The first start downloads container images and the configured Qwen model. No hosted AI token or paid account is required.
 
 The first investigation on a CPU-only machine can take several minutes while Ollama loads the model. A completed investigation retains the model briefly for the next request.
 
 ```powershell
+git clone --branch release/nov_Dev https://github.com/MrGreen008/ReleaseGuard_AI.git
+cd ReleaseGuard_AI
 pwsh -File scripts/start.ps1
 ```
 
@@ -23,17 +25,25 @@ pwsh -File scripts/start.ps1
 
 Sign in to ReleaseGuard as `approver` using `RELEASE_APPROVER_PASSWORD` from `.env`. Use `viewer` with `RELEASE_VIEWER_PASSWORD` for read-only access. For the isolated Flagsmith UI, sign in as `releaseguard-admin@example.invalid` with `FLAGSMITH_ADMIN_PASSWORD`.
 
-The setup script seeds a 40% experimental allocation for `new_payment_engine`, with the stable payment implementation as the default. It writes the SDK key, dedicated project and environment, explicit allowlist, and organization management token to `.env.flagsmith`. It leaves existing flag state in place on restart. The model tag comes from `OLLAMA_MODEL` and defaults to `qwen3:1.7b`. See [configuration and troubleshooting](docs/troubleshooting.md).
+Setup generates local credentials and integration configuration in the ignored `.env` and `.env.flagsmith` files. The model tag defaults to `qwen3:1.7b`. See [configuration and troubleshooting](docs/troubleshooting.md).
 
 To stop the project and retain both databases and the model volume, run `pwsh -File scripts/stop.ps1`.
 
+## How we use Flagsmith
+
+- **Self-hosted Flagsmith** runs in Docker Compose with a dedicated demo environment.
+- **Feature flags and remote config** use `new_payment_engine` with `stable` and `experimental` values weighted 60% and 40%. Demo Shop calls the identity evaluation API for each synthetic shopper. ReleaseGuard measures checkout outcomes in its own telemetry.
+- **Flagsmith Management API** supplies the rollout configuration to the agent through a read-only tool. After a human approves the exact change, Guardian revalidates the flag, disables it, and reads it back before measuring recovery.
+
 ## Reproduce the incident
 
-1. Open **Incident lab**, start traffic and wait for at least 30 healthy checkout requests across both cohorts.
-2. Select **Payment regression**. Open the new incident and compare stable and experimental error rates and P95 latency.
-3. Select **Run investigation**. Review the evidence, alternatives and read-only tools the model used.
-4. Open **Approvals** and review the exact enabled-to-disabled change. Approve it while traffic continues. The approval first moves to verification, then shows the fresh observation outcome.
-5. To try the negative control, restore Healthy baseline, re-enable the payment feature in the isolated Flagsmith UI, let the healthy window fill, and choose **Shared dependency failure**. Both cohorts fail and the policy blocks a flag rollback.
+1. Confirm **New Payment Engine** is enabled in the local Flagsmith environment. After a prior rollback, re-enable the flag there before replaying.
+2. In **Incident Lab**, select **Healthy baseline** and start traffic. Wait for at least 30 successful checkout requests with samples in both cohorts.
+3. With traffic running, select **Payment regression**. Open the newest **Checkout degradation** in the Overview incident queue and choose **Run investigation**. A Warning can qualify for rollback.
+4. A healthy baseline and stable cohort, plus at least two-thirds experimental server errors, can qualify for human rollback review. In **Approvals**, review the proposed flag change and approve it while traffic continues. Wait for **Recovered** and inspect the fresh checkout metrics.
+5. For the shared-failure control, re-enable the flag in local Flagsmith, restore **Healthy baseline**, and let healthy traffic accumulate. Select **Shared dependency failure**, open the new incident, and run the investigation. Both cohorts fail when the rollout is active, and no rollback proposal is created.
+
+An incident with insufficient healthy baseline samples returns a read-only finding. To collect new evidence, switch back to **Healthy baseline**, build fresh traffic, and trigger the scenario again. Each recorded incident retains its original measurement window.
 
 ## Verify
 

@@ -54,7 +54,10 @@ class GuardianApi {
 
     @GetMapping("/dashboard")
     Overview dashboard(Principal user) {
-        return new Overview(clock.instant(), environment, user.getName(), monitor.recent(), simulator.state(),
+        var at = clock.instant();
+        var live = monitor.liveCheckout();
+        return new Overview(at, environment, user.getName(), live.metrics(), live.lab(),
+            live.enoughSamples(), live.severity(),
             store.incidents(), store.investigations(), store.proposals(), store.auditEvents());
     }
 
@@ -101,6 +104,7 @@ class GuardianApi {
     record FaultRequest(@NotNull Fault fault) {}
     record ApprovalRequest(@NotNull Decision decision) {}
     record Overview(Instant at, String environment, String user, Window metrics, TrafficSimulator.State lab,
+                    boolean checkoutSampled, Severity checkoutSeverity,
                     List<Incident> incidents, List<Investigation> investigations, List<Proposal> proposals, List<Audit> audit) {}
     record Integrations(boolean flagsmith, String flagsmithDetail, boolean ai, String provider,
                         List<FlagState> flags, List<FlagObservation> history) {}

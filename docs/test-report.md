@@ -1,6 +1,6 @@
 # ReleaseGuard AI verification
 
-Run on November 26, 2026 IST in the repository-owned Docker Desktop lab. Java compilation targets release 17. Guardian and Shop use a Java 17 runtime image.
+The full rollback run was recorded on November 26, 2026 IST in the Docker Desktop lab. The latest rehearsal took place on November 27, 2026 IST. Java compilation targets release 17. Guardian and Shop use a Java 17 runtime image.
 
 | Check | Result |
 | --- | --- |
@@ -27,8 +27,16 @@ The initial browser test caught a label capitalization error, which was fixed. T
 | Approved rollback | The explicit approver request changed the real payment flag from enabled to disabled. Guardian checked Flagsmith readback before opening recovery verification. |
 | Verified recovery | 100 post-readback checkout requests, zero server errors, and 182 ms P95. Guardian recorded `RECOVERED`. |
 
-Edge cases such as rejection, expired and unauthorized decisions, stale configuration, duplicate and concurrent requests, provider failure, and incomplete recovery were exercised in automated fixture tests. GitHub Actions requires a published branch to run remotely. The submission video is represented by the recording script.
+Edge cases such as rejection, expired and unauthorized decisions, stale configuration, duplicate and concurrent requests, provider failure, and incomplete recovery were exercised in automated fixture tests.
 
 The model's free-text findings can be imprecise. In the captured payment investigation it described the expected improvement as a drop in control failures, although the control cohort already had zero failures. The measured evidence, exact proposal, readback and recovery classification are independent of that wording.
+
+## Latest rehearsal
+
+| Check | Observed result |
+| --- | --- |
+| Java and dashboard fixture tests | 17 Maven tests and five Playwright scenarios passed. The dashboard build and lint also passed. |
+| Insufficient baseline | Six of six experimental checkouts failed. Zero healthy baseline samples led to Observe with Low confidence and no proposal. |
+| Eligible payment regression | 40 healthy baseline checkouts, zero failures in 14 stable checkouts, and nine failures in 11 experimental checkouts. Live Ollama returned Rollback with High confidence in 38 seconds and recorded a pending proposal. Approval and recovery evidence are from the earlier full run above. |
 
 [Overview](screenshots/overview.png) · [Investigation](screenshots/investigation.png) · [Recovery](screenshots/recovery.png)

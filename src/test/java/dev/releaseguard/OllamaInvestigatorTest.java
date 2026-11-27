@@ -32,15 +32,16 @@ class OllamaInvestigatorTest {
         var evidence = tools.evidence(incident);
         when(transport.send(eq("Ollama"), anyString(), eq("POST"), anyMap(), any(), any())).thenReturn(
             response("""
-                {"message":{"tool_calls":[{"function":{"name":"compare_cohorts","arguments":{"label":"discarded"}}},
-                  {"function":{"name":"get_dependency_health","arguments":null}},
-                  {"function":{"name":"get_flag_configuration"}}]}}
+                {"message":{"tool_calls":[{"function":{"name":"get_flag_configuration","arguments":{"label":"discarded"}}}]}}
                 """),
             response(json.writeValueAsString(java.util.Map.of("message", java.util.Map.of("content",
                 json.writeValueAsString(investigation(incident, state).finding()))))));
-        assertThat(ollama.investigate(incident, evidence).recommendation()).isEqualTo(Recommendation.ROLLBACK);
+        var finding = ollama.investigate(incident, evidence);
+        assertThat(finding.recommendation()).isEqualTo(Recommendation.ROLLBACK);
+        assertThat(finding.confidence()).isEqualTo(Confidence.HIGH);
         assertThat(evidence.traces()).extracting(ToolTrace::name)
-            .containsExactly("compare_cohorts", "get_dependency_health", "get_flag_configuration");
+            .containsExactly("compare_cohorts", "get_flag_configuration");
+        verify(transport, times(2)).send(eq("Ollama"), anyString(), eq("POST"), anyMap(), any(), any());
         verify(transport).send(eq("Ollama"), anyString(), eq("POST"), anyMap(),
             argThat(body -> body instanceof java.util.Map<?, ?> request && request.containsKey("format")
                 && !request.containsKey("tools")), any());
@@ -67,6 +68,51 @@ class OllamaInvestigatorTest {
             .thenThrow(ServiceFault.unavailable("Model unavailable."));
         assertThatThrownBy(() -> ollama.investigate(incident, tools.evidence(incident))).hasMessage("Model unavailable.");
         verifyNoInteractions(flags);
+    }
+
+    @Test
+    void prematureConclusionGetsAnEvidenceReminderBeforeFinalizing() throws Exception {
+        var incident = incident(clock.instant());
+        var evidence = tools.evidence(incident);
+        var state = enabledFlag();
+        when(flags.inventory()).thenReturn(List.of(state));
+        when(store.observe(state)).thenReturn(new FlagObservation(clock.instant(), state));
+        var conclusion = findingReply(investigation(incident, state).finding());
+        when(transport.send(eq("Ollama"), anyString(), eq("POST"), anyMap(), any(), any())).thenReturn(
+            conclusion, toolReply("get_flag_configuration"), conclusion);
+
+        assertThat(ollama.investigate(incident, evidence).recommendation()).isEqualTo(Recommendation.ROLLBACK);
+        assertThat(evidence.traces()).extracting(ToolTrace::name)
+            .containsExactly("compare_cohorts", "get_flag_configuration");
+        verify(flags, never()).disable(any());
+    }
+
+    @Test
+    void noBaselineAllowsOnlyReadOnlyFindings() throws Exception {
+        var original = incident(clock.instant());
+        var incident = new Incident(original.id(), original.detectedAt(), original.severity(),
+            window(original.baseline().to(), stats(0, 0, 0), stats(0, 0, 0)), original.current());
+        var state = enabledFlag();
+        when(flags.inventory()).thenReturn(List.of(state));
+        when(store.observe(state)).thenReturn(new FlagObservation(clock.instant(), state));
+        when(transport.send(eq("Ollama"), anyString(), eq("POST"), anyMap(), any(), any())).thenReturn(
+            toolReply("get_flag_configuration"),
+            findingReply(investigation(incident, state).finding()));
+
+        assertThatThrownBy(() -> ollama.investigate(incident, tools.evidence(incident)))
+            .hasMessage("AI recommendation was inconsistent with the measured evidence.");
+        verify(flags, never()).disable(any());
+    }
+
+    private JsonHttp.Result toolReply(String tool) throws Exception {
+        return response("""
+            {"message":{"tool_calls":[{"function":{"name":"%s","arguments":{}}}]}}
+            """.formatted(tool));
+    }
+
+    private JsonHttp.Result findingReply(Finding finding) throws Exception {
+        return response(json.writeValueAsString(java.util.Map.of("message",
+            java.util.Map.of("content", json.writeValueAsString(finding)))));
     }
 
     private JsonHttp.Result response(String value) throws Exception {

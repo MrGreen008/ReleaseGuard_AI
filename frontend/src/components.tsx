@@ -31,15 +31,16 @@ export function SignIn({ onSubmit, busy, error }: {
 export function Metrics({ data }: { data: Dashboard }) {
   const { total, from, to } = data.metrics
   const rate = total.requests / Math.max(1, (Date.parse(to) - Date.parse(from)) / 1000)
-  const current = data.incidents[0]
+  const severity = data.checkoutSeverity
   return <div className="metrics">
     <Metric label="Requests" value={String(total.requests)} note={`${rate.toFixed(1)} requests / sec`} />
     <Metric label="Server error rate" value={total.requests ? percent(total.errorRate) : '—'}
       note={`${total.failures} server errors`} tone={total.failures > 0 ? 'alert-text' : undefined} />
     <Metric label="P95 latency" value={total.requests ? `${total.p95Ms} ms` : '—'}
       note={total.requests ? `${Math.round(total.avgMs)} ms average` : 'Awaiting samples'} />
-    <Metric label="Latest incident" value={current ? label(current.severity) : 'None'}
-      note={current ? `Detected ${time(current.detectedAt)}` : 'No detected degradation'} />
+    <Metric label="Current checkout health" value={severity ? label(severity) : data.checkoutSampled ? 'Normal' : 'Awaiting samples'}
+      note={severity ? 'Degradation in recent traffic' : data.checkoutSampled ? 'No anomaly in recent traffic' : 'Waiting for enough checkout requests'}
+      tone={severity ? 'alert-text' : undefined} />
   </div>
 }
 
@@ -47,7 +48,9 @@ function Metric({ label: title, value, note, tone }: { label: string; value: str
   return <div className="metric"><span>{title}</span><strong className={tone}>{value}</strong><small>{note}</small></div>
 }
 
-export function CohortComparison({ data, baseline }: { data: Window; baseline?: Window }) {
+export function CohortComparison({ data, baseline, showSuccess = false }: {
+  data: Window; baseline?: Window; showSuccess?: boolean
+}) {
   const cohorts = [
     { label: 'Stable payment', stats: data.cohorts.STABLE, baseline: baseline?.cohorts.STABLE, className: 'stable' },
     { label: 'Experimental payment', stats: data.cohorts.EXPERIMENTAL,
@@ -55,14 +58,20 @@ export function CohortComparison({ data, baseline }: { data: Window; baseline?: 
   ]
   return <div className="cohorts">
     <div className="window-label">{time(data.from)} to {time(data.to)} <span>·</span> <code>POST /api/checkout</code></div>
-    {cohorts.map(cohort => <div className="cohort" key={cohort.label}>
-      <div className="cohort-heading"><strong>{cohort.label}</strong><span>{cohort.stats.requests
-        ? percent(cohort.stats.errorRate) : '—'}</span></div>
-      <div className="bar" aria-hidden="true"><i className={cohort.className}
-        style={{ width: percent(cohort.stats.errorRate) }} /></div>
-      <span className="secondary">{statsLine(cohort.stats)}</span>
-      {cohort.baseline && <small>Baseline · {statsLine(cohort.baseline)}</small>}
-    </div>)}
+    {cohorts.map(cohort => {
+      const { requests, successes, errorRate } = cohort.stats
+      const rate = showSuccess && requests ? successes / requests : errorRate
+      return <div className="cohort" key={cohort.label}>
+        <div className="cohort-heading"><strong>{cohort.label}</strong><span>{requests
+          ? `${percent(rate)} ${showSuccess ? 'passed' : 'errors'}` : 'No requests'}</span></div>
+        <div className={showSuccess && requests ? 'bar success-bar' : 'bar'} aria-hidden="true">
+          <i className={showSuccess ? '' : cohort.className} style={{ width: percent(rate) }} /></div>
+        <span className="secondary">{showSuccess && requests
+          ? `${successes} passed · ${requests - successes} failed · P95 ${cohort.stats.p95Ms} ms`
+          : statsLine(cohort.stats)}</span>
+        {cohort.baseline && <small>Baseline · {statsLine(cohort.baseline)}</small>}
+      </div>
+    })}
     {data.cohorts.UNKNOWN.requests > 0 &&
       <p className="notice">{data.cohorts.UNKNOWN.requests} requests had no verified cohort.</p>}
     {Object.entries(data.total.errors).length > 0 && <dl className="errors">
@@ -78,14 +87,18 @@ function statsLine(stats: Stats) {
 export function FlagTable({ integrations }: { integrations: Integrations | null }) {
   if (!integrations) return <p className="muted">Checking Flagsmith…</p>
   if (!integrations.flagsmith) return <p className="notice">{integrations.flagsmithDetail}</p>
+  const payment = integrations.flags.find(flag => flag.name === 'new_payment_engine')
   return <>
     <div className="scroll-table"><table>
-      <thead><tr><th scope="col">Feature</th><th scope="col">State</th><th scope="col">Allocation</th></tr></thead>
+      <thead><tr><th scope="col">Feature</th><th scope="col">State</th><th scope="col">Configured allocation</th></tr></thead>
       <tbody>{integrations.flags.map(flag => <tr key={flag.stateId}>
         <td><code>{flag.name}</code></td><td><Badge tone={flag.enabled ? 'green' : 'neutral'}>
           {flag.enabled ? 'Enabled' : 'Disabled'}</Badge></td><td>{allocation(flag)}</td>
       </tr>)}</tbody>
     </table></div>
+    {payment && !payment.enabled && <p className="muted">
+      The payment rollout is disabled. Demo checkouts use the stable payment engine.
+    </p>}
     {integrations.history.length > 0 && <>
       <h3>Observed configuration</h3>
       <ul className="compact-list">{integrations.history.map(item => <li key={item.at}>
